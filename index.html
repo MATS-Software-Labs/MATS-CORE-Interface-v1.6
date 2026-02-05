@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATS-CORE v1.6.0</title>
+    <style>
+        :root {
+            --bg-black: #050505;
+            --mats-green: #00ff00;
+            --glow-blue: #005fcc;
+            --active-blue: #00d9ff;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            background-size: cover;
+            background-position: center;
+            color: var(--mats-green);
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            transition: background-image 0.5s ease-in-out;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 25px;
+            border-bottom: 2px solid var(--glow-blue);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        #clock { font-size: 28px; font-weight: bold; text-shadow: 0 0 10px var(--mats-green); }
+
+        .search-container {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 18px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid var(--glow-blue);
+            color: var(--mats-green);
+            font-size: 20px;
+            text-align: center;
+            outline: none;
+            box-shadow: 0 0 20px rgba(0, 95, 204, 0.3);
+        }
+
+        #mats-taskbar {
+            position: fixed;
+            bottom: -70px;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background: rgba(0,0,0,0.95);
+            border-top: 3px solid var(--glow-blue);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 1000;
+        }
+
+        body:hover #mats-taskbar, #mats-taskbar:hover { transform: translateY(-70px); }
+
+        .task-item {
+            padding: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        .task-item:hover {
+            color: white;
+            text-shadow: 0 0 15px var(--glow-blue);
+            background: radial-gradient(circle, rgba(0,95,204,0.2) 0%, rgba(0,0,0,0) 70%);
+        }
+
+        .task-active {
+            color: var(--active-blue) !important;
+            text-shadow: 0 0 15px var(--active-blue) !important;
+            border-bottom: 2px solid var(--active-blue);
+        }
+
+        /* System Overlay */
+        #system-overlay {
+            display: none;
+            position: fixed;
+            top: 25%;
+            left: 25%;
+            width: 50%;
+            background: #000;
+            border: 2px solid var(--glow-blue);
+            z-index: 3000;
+            padding: 20px;
+            box-shadow: 0 0 50px #000;
+        }
+
+        .sys-row { padding: 10px; border-bottom: 1px solid #222; cursor: pointer; }
+        .sys-row:hover { background: #111; color: white; }
+
+        #push-wrap {
+            position: fixed;
+            top: 100px;
+            right: -350px;
+            width: 320px;
+            background: #111;
+            border: 2px solid var(--glow-blue);
+            padding: 15px;
+            transition: right 0.5s ease-in-out;
+            z-index: 2000;
+        }
+
+        .bar-bg { width: 100%; height: 12px; background: #222; margin: 15px 0; }
+        #bar-fill { height: 100%; width: 0%; background: var(--mats-green); transition: width 0.2s; }
+
+        #context-menu { display: none; position: fixed; background: #111; border: 1px solid var(--glow-blue); z-index: 4000; width: 220px; }
+        .menu-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #222; font-size: 13px; }
+        .menu-item:hover { background: var(--glow-blue); color: white; }
+    </style>
+</head>
+<body oncontextmenu="showContextMenu(event)" onclick="hideMenu()">
+
+    <div class="header">
+        <div id="clock">--:--:--</div>
+        <div style="text-align:right">
+            MATS-CORE v1.6.0 <br>
+            <span id="sys-status" style="color: var(--glow-blue)">CORE-LINK: ACTIVE</span>
+        </div>
+    </div>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="main-search" placeholder="Frag mich was, kauf was oder such Code..." onkeydown="if(event.key==='Enter') megaSearch()">
+        </div>
+    </div>
+
+    <div id="mats-taskbar">
+        <div class="task-item" style="color: #ffaa00;" onclick="openSystem()">💠 SYSTEM</div>
+        <div class="task-item" id="task-buffer" onclick="toggleFeature('buffer', '2.5M Buffer-Optimierung')">1. 2.5M Buffer</div>
+        <div class="task-item" onclick="runOnce('kernel', 'Kernel Purge & Opt.')">2. Kernel Opt.</div>
+        <div class="task-item" onclick="runOnce('pihole', 'Pi-hole Audit')">3. Pihole Check</div>
+        <div class="task-item" onclick="runOnce('net', 'Net-Gate Auto-Login')">4. Net-Check</div>
+        <div class="task-item" id="task-ai" onclick="toggleFeature('ai', 'AI-Core Firewall')">5. AI-Core</div>
+    </div>
+
+    <div id="system-overlay">
+        <span style="color:red; float:right; cursor:pointer;" onclick="document.getElementById('system-overlay').style.display='none'">[X]</span>
+        <h3>MATS-CORE v1.6.0 BRIDGE</h3>
+        <div class="sys-row" onclick="alert('Öffne Raspberry Pi OS Settings...')">> Pi Configuration (GUI)</div>
+        <div class="sys-row" onclick="alert('Öffne Terminal Bridge...')">> Command Line Interface</div>
+        <div class="sys-row" onclick="location.reload()">> Reset User Interface</div>
+    </div>
+
+    <div id="context-menu">
+        <div class="menu-item" onclick="changeWallpaper()">🖼️ Hintergrund anpassen</div>
+        <div class="menu-item" onclick="location.reload()">🔄 Interface Refresh</div>
+    </div>
+
+    <div id="push-wrap">
+        <div id="push-title" style="font-weight: bold;">Initialisiere...</div>
+        <div class="bar-bg"><div id="bar-fill"></div></div>
+        <div id="push-status" style="font-size: 12px; color: var(--glow-blue);">Status: Bereit.</div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const savedBg = localStorage.getItem('mats_wallpaper');
+            if(savedBg) document.body.style.backgroundImage = "url('" + savedBg + "')";
+        };
+
+        function updateClock() {
+            const now = new Date();
+            const corrected = new Date(now.getTime() + 3600000); // +1h Force
+            document.getElementById('clock').innerText = corrected.toLocaleTimeString('de-DE');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let states = { buffer: false, ai: false };
+
+        function openSystem() { document.getElementById('system-overlay').style.display = 'block'; }
+
+        function toggleFeature(id, title) {
+            states[id] = !states[id];
+            const el = document.getElementById('task-' + id);
+            if(states[id]) {
+                el.classList.add('task-active');
+                showPush(title + " EIN", id);
+            } else {
+                el.classList.remove('task-active');
+                showPush(title + " AUS", id);
+            }
+        }
+
+        function runOnce(id, title) { showPush("Execute: " + title, id); }
+
+        function showPush(msg, id) {
+            const wrap = document.getElementById('push-wrap');
+            const fill = document.getElementById('bar-fill');
+            document.getElementById('push-title').innerText = msg;
+            wrap.style.right = '20px';
+            fill.style.width = '0%';
+            let progress = 0;
+            let interval = setInterval(() => {
+                progress += 10;
+                fill.style.width = progress + "%";
+                if(progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => { wrap.style.right = '-350px'; }, 1000);
+                }
+            }, 80);
+        }
+
+        function showContextMenu(e) { e.preventDefault(); const m = document.getElementById('context-menu'); m.style.display='block'; m.style.left=e.pageX+"px"; m.style.top=e.pageY+"px"; }
+        function hideMenu() { document.getElementById('context-menu').style.display='none'; }
+        function changeWallpaper() { const url = prompt("Wallpaper URL:"); if(url) { document.body.style.backgroundImage = "url('"+url+"')"; localStorage.setItem('mats_wallpaper', url); } }
+        function megaSearch() { window.open("https://www.google.com/search?q=" + encodeURIComponent(document.getElementById('main-search').value), "_blank"); }
+    </script>
+</body>
+</html>
